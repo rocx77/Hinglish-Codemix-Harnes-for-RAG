@@ -1,0 +1,18 @@
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Project environment and local config
+.env
+.env.*
+
+# Ignore document files
+*.pdf
+*.docx
+*.pptx
+
+# Ignore OS/editor artifacts
+.DS_Store
+Thumbs.db
