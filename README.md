@@ -1,32 +1,39 @@
 # HinglishCodeMix Harness for RAG
 
-This project provides a lightweight harness for experimenting with Retrieval-Augmented Generation (RAG) workflows on Hinglish/English code-mixed data.
-
-## Overview
-
-- Evaluate retrieval and generation quality
-- Work with mixed-language datasets
-- Test prompt and model behavior in a reproducible setup
+Experimenting with Retrieval-Augmented Generation (RAG) on Hinglish/English
+code-mixed data using the PHINC parallel corpus.
 
 ## Project Structure
 
-- `doc_parse.py` — document parsing utilities
-- `test_model (1).py` — model evaluation or testing
-- `project_view.md` — project notes or overview
-- `Evaluation metric for MP.txt` — metric documentation
+```
+Datasets/                          Raw + cleaned data
+  English-Hindi ... corpus.csv     Raw PHINC (read-only)
+  phinc_cleaned_step1to4.csv       Cleaned output
+
+scripts/                           Pipeline scripts (run in order)
+  clean_phinc.py                   Step 1-4: load, clean, dedup
+  (02-06 planned)
+
+AGENTS.md                          Agent instructions & conventions
+CHANGELOG.md                       Change log (append-only)
+```
 
 ## Setup
 
-1. Create and activate a virtual environment.
-2. Install dependencies:
+```bash
+pip install -r requirements.txt
+python scripts/clean_phinc.py
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Pipeline
 
-3. Run the project scripts as needed.
+| Step | Script           | Description                       | Status |
+|------|------------------|-----------------------------------|--------|
+| 1    | `clean_phinc.py` | Clean PHINC corpus (Steps 1-4)    | Done   |
+| 2    | Build benchmark  | Generate query/passage pairs       | TODO   |
+| 3    | Run retrieval    | BM25 + dense retrieval             | TODO   |
+| 4    | Rerank           | Cross-encoder / LLM reranking      | TODO   |
+| 5    | Evaluate         | MRR, MAP, NDCG metrics             | TODO   |
+| 6    | Failure analysis | Error pattern analysis             | TODO   |
 
-## Notes
-
-- Files with `.pdf`, `.docx`, and `.pptx` extensions are ignored by Git.
-- Update this README as the project evolves.
+See `AGENTS.md` for conventions and `CHANGELOG.md` for progress.

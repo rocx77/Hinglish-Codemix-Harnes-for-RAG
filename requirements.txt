@@ -4,8 +4,6 @@ pandas>=2.0
 python-dotenv>=1.0
 requests>=2.31
 
-# Add project-specific libraries here as needed
-# Example:
-# streamlit>=1.36
-# langchain>=0.3
-# transformers>=4.41
+# Dataset cleaning
+ftfy>=6.0
+rapidfuzz>=3.0

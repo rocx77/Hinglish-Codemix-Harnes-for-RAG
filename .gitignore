@@ -1,8 +1,12 @@
 # Python virtual environment
 .venv/
+.venv310/
 venv/
 __pycache__/
 *.pyc
+
+# Local subproject (kept out of this repo / GitHub)
+code-mixed-search-benchmark/
 
 # Project environment and local config
 .env
