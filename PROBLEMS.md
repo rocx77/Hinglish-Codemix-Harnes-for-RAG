@@ -262,6 +262,53 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
 
 ---
 
+## P9 — WordNet filter classified the input vocabulary's header row as a token
+
+- **Status:** SOLVED (2026-09-11)
+- **First seen:** 2026-09-11 (Task 0 of the canonical-map build)
+- **Symptom:** `reports/wordnet_layer_output.tsv` had 29,580 data rows instead
+  of the documented 29,579. Line 2 of the file was `token\tENGLISH\twordnet_exact`.
+- **Root cause:** `run_on_vocab_file` (scripts/wordnet_hinglish_filter.py) fed
+  EVERY input line of `vocab_phinc_freq.tsv` to the classifier, including the
+  vocabulary file's own header row (`token\trows_containing_token`). `token` is
+  a valid WordNet word, so it became a spurious ENGLISH entry.
+- **Why it mattered:** One fake token per build would silently enter the
+  canonical map and any downstream join, with zero error message. Also a
+  general class of bug ("did not skip the header") any agent could repeat on a
+  new vocabulary file.
+- **Solution (found):** Header detection + skip in `run_on_vocab_file`: first
+  field is case-insensitively `token` AND the second field is not an integer ->
+  treat as header, log, continue. Regenerated output: 29,579 rows; ENGLISH
+  6,176 -> 6,175; all other buckets unchanged. Note: one-column vocab files
+  whose first token is literally `token` will be skipped as a header — the skip
+  is always logged so this edge is visible.
+
+---
+
+## P10 — Pandas default-parse of the TSVs silently misparses quote-containing tokens
+
+- **Status:** GUARDRAIL (mitigated, not fixable in-pipeline)
+- **First seen:** 2026-09-11 (documented in the exact-match audit, re-measured
+  in Task 0)
+- **Symptom:** `pd.read_csv("reports/vocab_phinc_freq.tsv", sep="\t")` returns
+  26,541 rows; `wordnet_layer_output.tsv` returns 26,542 — ~3,000 rows
+  silently shifted/merged, zero error. Tokens containing `"` (532 of them,
+  e.g. `hai"`, `"ye`, `"bhai`) were misparsed as quoted fields.
+- **Root cause:** pandas default CSV writer/parser treats `"` as a quote
+  character (RFC4180). Our TSVs are written by plain `open()` writes that never
+  quote, so a literal `"` inside a token collides with the parser's quoting.
+- **Why it mattered:** Column shifts are silent — downstream joins and sums
+  produce plausible-looking wrong numbers (the exact hazard the batch-collapse
+  P6 describes for IndicXlit).
+- **Solution (mitigation):** The two pipeline scripts are SAFE — they use
+  `open()` + `split("\t")`, never the pandas parser. Any downstream pandas
+  consumer MUST pass `quoting=csv.QUOTE_NONE, keep_default_na=False`. The
+  canonical-map build reads these files exclusively via `QUOTE_NONE` (Task 0
+  fixed/deliverable files). A future switch to pandas-native reads would
+  reintroduce this.
+
+---
+
 _Append new problems at the end. When a problem is solved, flip its Status to
 SOLVED and describe what worked — that "how we overcame it" note is the whole
 point of this file._

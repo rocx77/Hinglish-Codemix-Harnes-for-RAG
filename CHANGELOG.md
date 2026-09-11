@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [2026-09-11] Task 0 — TSV quoting fix + input-header leak fix (canonical-map build)
+
+- Verified the documented quoting hazard: default pandas TSV parse of the
+  vocab/labels files silently returned 26,541 / 26,542 rows (vs 29,579 true) —
+  ~3,000 rows mangled with no error; `"`-containing tokens (532) shifted
+  columns. `QUOTE_NONE` (quoting=3) + `keep_default_na=False` restores all rows.
+- Task 0 STOP condition triggered: labels parsed to 29,580 rows, not 29,579.
+  Root cause: `run_on_vocab_file` classified the vocab file's own **header
+  row** (token `token`, a valid WordNet word) as a spurious ENGLISH row.
+- Fixed `scripts/wordnet_hinglish_filter.py`: header detection/skip in
+  `run_on_vocab_file` (first field == 'token' AND no integer 2nd field). Output
+  regenerated: 29,579 rows; ENGLISH 6,176 -> 6,175; all other buckets stable.
+- Deliverables written (QUOTE_NONE, keep_default_na=False):
+  `reports/vocab_phinc_freq_fixed.tsv`, `reports/wordnet_layer_output_fixed.tsv`
+  (both 29,579 rows, 0 duplicates, 532 quote-containing tokens preserved).
+- PROBLEMS.md: added P9 (header leak, SOLVED) and P10 (quoting hazard, guardrail).
+- Regeneration of `wordnet_layer_output.tsv` takes ~2+ min (self-test + full
+  WordNet pass); use a timeout >= 600s when running.
+
 ## [2026-09-11] Short-token exact-match audit — P1 bug class found in WordNet exact layer
 
 - External review of the P1 rules-layer finding flagged that the **exact**

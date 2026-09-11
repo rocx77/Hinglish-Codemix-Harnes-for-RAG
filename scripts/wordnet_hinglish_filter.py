@@ -359,7 +359,15 @@ def run_self_test(verbose: bool = True) -> float:
 # ---------------------------------------------------------------------------
 
 def run_on_vocab_file(path: str, out_path: str) -> None:
+    """Classify a vocabulary file. Input lines are 'token', or 'token<TAB>freq'.
+
+    A header line ('token<TAB>rows_containing_token') is detected and skipped:
+    without this, the literal token 'token' (a valid WordNet word) would leak
+    into the output as a spurious ENGLISH row. Detection: first field is
+    case-insensitively 'token' AND there is no integer second field.
+    """
     counts: Dict[str, int] = defaultdict(int)
+    header_skipped = False
     with open(path, "r", encoding="utf-8") as f_in, \
          open(out_path, "w", encoding="utf-8") as f_out:
         f_out.write("token\tlabel\tmethod\n")
@@ -367,8 +375,15 @@ def run_on_vocab_file(path: str, out_path: str) -> None:
             line = line.rstrip("\n")
             if not line:
                 continue
-            token = line.split("\t")[0].strip()
+            fields = line.split("\t")
+            token = fields[0].strip()
             if not token:
+                continue
+            if not header_skipped and token.lower() == "token" and (
+                len(fields) < 2 or not fields[1].isdigit()
+            ):
+                print(f"[input header detected and skipped: {line!r}]")
+                header_skipped = True
                 continue
             c = classify_token_rules(token)
             counts[c.label] += 1
