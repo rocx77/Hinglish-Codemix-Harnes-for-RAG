@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [2026-09-11] Short-token exact-match audit — P1 bug class found in WordNet exact layer
+
+- External review of the P1 rules-layer finding flagged that the **exact**
+  WordNet match (step 4) has no length gate — same EN/HI collision bug class as
+  P1 and P7, masked only by `HINGLISH_OVERRIDE` (49 tokens) winning by ordering.
+- Audit of the shipped `reports/wordnet_layer_output.tsv` CONFIRMED the
+  hypothesis: 25 unambiguous Hinglish tokens carry `ENGLISH\twordnet_exact`
+  live (par 404, ji 364, pe 355, hum 271, tum 256, mere 232, din 230, log 230,
+  bas 229, le 219, mat 180, hua 167, wale 166, agar 119, ...) — ~5,100
+  row-occurrences of silent WRONG label. Exact ENGLISH len<=4 = 1,589 tokens /
+  24,641 row-mass; len==5 = 2,610 / 30,315.
+- `reports/exact_match_short_token_audit.md` written: method, evidence tables,
+  the four review recommendations with dispositions (audit DONE; validation set
+  PENDING; quoting already safe in-scripts, requires quoting=3 only for pandas
+  consumers; LLM confidence-check DEFERRED), and a decision gate.
+- `PROBLEMS.md`: added P8 (OPEN, fix under review). Proposed fix: promote the
+  25 audited tokens to `HINGLISH_OVERRIDE` + regenerate, no blanket length gate
+  (would re-create the P1 dead-end).
+
 ## [2026-09-11] Doc-sync with P1 rules-layer report
 
 - `PROBLEMS.md`: P1 → added progress block documenting the validated

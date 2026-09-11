@@ -56,6 +56,7 @@ HinglishCodeMix_Harness for RAG/
 │   ├── indicxlit_verification_report.md
 │   ├── token_collision_diagnostic_report.md
 │   ├── wordnet_layer_report.md         # P1 rules-layer validation (fuzzy-guard finding)
+│   ├── exact_match_short_token_audit.md # Short-token exact-ENGLISH collision audit (P8, pre-canonical-map)
 │   └── collision_len4_en_freq_sorted.tsv   (full 2,383-token override-table source data)
 │
 ├── tests/                     # (planned) Unit tests

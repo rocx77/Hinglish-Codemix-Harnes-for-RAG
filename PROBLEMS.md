@@ -229,6 +229,39 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
 
 ---
 
+## P8 — WordNet EXACT match has no length gate (same bug class as P1/P7)
+
+- **Status:** OPEN (audit done, fix under review)
+- **First seen:** 2026-09-11 (review of the P1 rules-layer validation)
+- **Symptom:** The exact WordNet check (`wordnet_exact`, step 4) runs on every
+  token with no length gate. Tokens like `par` (404), `ji` (364), `pe` (355),
+  `hum` (271), `tum` (256), `mere` (232), `din` (230), `log` (230), `mat`
+  (180), `hua` (167), `wale` (166), `agar` (119) — all unambiguous Hinglish in
+  this corpus — carry `ENGLISH\twordnet_exact` in the CURRENT shipped
+  `reports/wordnet_layer_output.tsv`. Audit found **25 live WRONG labels**,
+  ~5,100 row-occurrences total.
+- **Root cause:** Same root as P1/P7. WordNet legitimately contains short
+  English entries whose spellings coincide with the most common Hinglish
+  function words. The exact layer has no gate at all, so the only thing
+  stopping mislabeling today is the 49-token `HINGLISH_OVERRIDE` set being
+  checked BEFORE WordNet — a patch for known cases, not a structural fix.
+- **Why it mattered:** A hard `ENGLISH` label bypasses Hinglish normalization.
+  Any short Hinglish token that is also a valid WordNet entry and not yet in
+  the override set is silently routed ENGLISH with zero warning — the exact
+  failure mode P7 documents for the fuzzy layer, larger because there is no
+  gate whatsoever.
+- **Solution (planned):** Do NOT add a blanket length gate — it would wrongly
+  defer genuine English short words (`is`, `the`, `at`, `it`, ...) per the P1
+  documented dead-end. Instead: (1) promote the 25 audited always-Hinglish
+  tokens to `HINGLISH_OVERRIDE` and regenerate; (2) treat a freq-sorted
+  short-token audit as a required validation step on every future vocab rerun;
+  (3) resolve the adjacent context-sensitive list (`hi`, `khan`, `logo`, `ha`)
+  on a per-token basis.
+- **Carried in:** `reports/exact_match_short_token_audit.md` (full method,
+  evidence tables, decision gate).
+
+---
+
 _Append new problems at the end. When a problem is solved, flip its Status to
 SOLVED and describe what worked — that "how we overcame it" note is the whole
 point of this file._
