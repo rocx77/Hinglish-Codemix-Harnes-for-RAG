@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [2026-09-11] Doc-sync with P1 rules-layer report
+
+- `PROBLEMS.md`: P1 → added progress block documenting the validated
+  `wordnet_hinglish_filter.py` output and final numbers. P2 (mojibake) →
+  SOLVED: sane-charset regex prefilter now handles this at preprocessing time.
+  Added P7 (fuzzy-ENGLISH silent wrong labels at scale): SOLVED, full
+  root-cause and guard design recorded.
+- `README.md`: refreshed project structure, added setup commands for
+  `export_phinc_vocab.py` and `wordnet_hinglish_filter.py`, added normalization
+  pre-filter as pipeline step 0.
+
+---
+
 ## [2026-09-11] P1 rules-layer pre-filter built, validated, and run on full vocab
 
 - Created `scripts/wordnet_hinglish_filter.py` — offline, zero-cost deterministic

@@ -50,15 +50,23 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
 - **Validation plan:** After building the table, re-run the two diagnostics to
   confirm English-share-per-length drops for the Hinglish words while genuine
   English tokens stay ENGLISH, and log the numbers.
-- **Where the data lives:** `reports/token_collision_diagnostic_report.md`
-  (sampled view), `reports/collision_len4_en_freq_sorted.tsv` (exhaustive
-  2,383-row table, token+length+frequency, sorted).
+- **Progress (2026-09-11 — P1 rules-layer BUILD + VALIDATED):** The P1
+  zero-cost pre-filter `scripts/wordnet_hinglish_filter.py` was built, validated
+  on a 17-token self-test (16 correct / 1 deferred / 0 wrong), and run on the
+  full vocabulary. It resolves one bucket deterministically before any LLM call:
+  NON_LINGUISTIC 8,573 · AMBIGUOUS 4 · HINGLISH 49 (override) · ENGLISH 6,176
+  (5,986 exact + 190 guarded-fuzzy) · **UNCERTAIN_NEEDS_LLM 14,778** (50.0% of
+  vocab, 35.3% of row-mass). Full numbers and the fuzzy-guard finding in
+  `reports/wordnet_layer_report.md`; labeled output in
+  `reports/wordnet_layer_output.tsv`. The final override table for the
+  Tier-1 wiring still ships the high-frequency head, but now rides on this
+  validated classification instead of the raw collision pool.
 
 ---
 
 ## P2 — Encoding mojibake reaches the classifier (emoji garbage)
 
-- **Status:** OPEN (follow-up)
+- **Status:** SOLVED (2026-09-11)
 - **First seen:** 2026-09-05 (collision diagnostic sample)
 - **Symptom:** `Γ¥ñ∩╕Å` (a heart emoji mangled through a cp1252-ish decode) is a
   3-char token classified ENGLISH in the danger-zone sample. Similar mojibake
@@ -70,10 +78,12 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
 - **Why it mattered:** Mojibake tokens pollute the vocabulary and would be
   shipped through normalization/benchmarking; they are also exactly the kind of
   token that makes a downstream evaluator's accuracy numbers look wrong.
-- **Solution (planned):** A preprocessing pass that drops tokens containing
-  characters outside a sane set (latin letters / digits, and later Devanagari),
-  BEFORE the router sees them. This belongs in the cleaning/preprocessing layer,
-  NOT in `token_router.py`.
+- **Solution (found — P1 rules-layer pre-filter, 2026-09-11):** The regex
+  prefilter in `scripts/wordnet_hinglish_filter.py` now drops tokens containing
+  characters outside a sane set (`[a-zA-Z\u0900-\u097F]`) as NON_LINGUISTIC
+  BEFORE any classifier sees them. Mojibake (`Γ¥ñ∩╕Å`) fails that check and never
+  reaches the router. Kept in the preprocessing/rules layer, NOT in
+  `token_router.py`.
 - **Note:** Distinct from P1 — this is a cleaning gap, not a routing logic issue.
 
 ---
@@ -178,6 +188,44 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
   equality; (3) log the numbers in this file and the verification report.
 - **Carried in:** `reports/hinglish_normalization_architecture.md`
   (gate G2) and `reports/indicxlit_verification_report.md`.
+
+---
+
+## P7 — Fuzzy-ENGLISH layer silently mislabeled Hinglish content words at scale
+
+- **Status:** SOLVED (2026-09-11)
+- **First seen:** 2026-09-11 (first full-vocab run of the P1 rules pre-filter)
+- **Symptom:** Unguarded fuzzy matching (len ≥ 5, edit distance 1-2) produced
+  silent WRONG `ENGLISH` labels on the most important Hinglish content words:
+  `bahut` (209, via `baht`), `saath` (158), `karte` (153), `salman` (152, via
+  `salmon`), `accha` (148), `chahiye` (142, edit-2), `karna` (125, via `karma`),
+  `kaise` (115), `bahot` (114), `kahan` (104), `dhoni` (108). Frequencies 104-209
+  — the opposite of a long tail.
+- **Root cause:** WordNet's fuzzy neighbourhood is full of valid English words
+  that are edit-distance 1-2 from common Hinglish; short tokens (5-6 letters)
+  are exactly where EN/HI collide (P1). Self-testing in the script (17 known
+  tokens) produced 0 wrong labels because none of the samples had a
+  fuzzy-triggering form — the bug was invisible until real vocabulary ran.
+- **Why it mattered:** A hard `ENGLISH` label is used to short-circuit
+  normalization. Every wrong label silently skips Hinglish normalization for a
+  high-frequency content word. Per the design rule — "a token landing in the
+  WRONG hard label is worse than deferring" — this was a blocking defect.
+- **Solution (found):** Three gates on the fuzzy path:
+  1. **Length gate** raised to 7 (short strings = collision zone).
+  2. **Common-English gate** — matched WordNet lemma must be in wordfreq top-20k
+     (`_EN_COMMON`; blocks `baht`, passes `karma`, moot since `karna` is len 5).
+  3. **Strict distance** — ≤ 1 for len ≤ 9, only len ≥ 10 gets 2.
+  Result: fuzzy hits dropped 4,151 → 207; zero wrong labels on the critical
+  words (all now UNCERTAIN_NEEDS_LLM). ~18 residual Hinglish loanwords (freq ≤ 5:
+  milenge, andhere, banwana, karwate, sanskriti, sadharan, sahaara, sultani,
+  madrasi, congressi, bastiyon, wicketo, stadiumi, hospitalo, pakistaniyo/io/ano,
+  karaoge) were moved to HINGLISH_OVERRIDE (31 → 49).
+- **Lesson:** Fuzzy layers must be trained-sensitive, not just self-test-clean.
+  The self-test passing with the layer broken is the failure mode to guard
+  against — keep the audit-of-high-frequency-mislabel checks in
+  `reports/wordnet_layer_report.md` in mind for any future fuzzy layer.
+- **Full story:** `reports/wordnet_layer_report.md` (§ Fuzzy layer
+  false-positive finding).
 
 ---
 
