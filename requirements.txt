@@ -7,3 +7,10 @@ requests>=2.31
 # Dataset cleaning
 ftfy>=6.0
 rapidfuzz>=3.0
+
+# Token-level routing / normalization
+wordfreq>=3.0
+nltk>=3.8   # WordNet corpus for the P1 rules pre-filter (scripts/wordnet_hinglish_filter.py)
+
+# Gemini API (Google GenAI SDK - current successor to google-generativeai)
+google-genai>=2.0,<3.0
