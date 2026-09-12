@@ -58,9 +58,24 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
   (5,986 exact + 190 guarded-fuzzy) · **UNCERTAIN_NEEDS_LLM 14,778** (50.0% of
   vocab, 35.3% of row-mass). Full numbers and the fuzzy-guard finding in
   `reports/wordnet_layer_report.md`; labeled output in
-  `reports/wordnet_layer_output.tsv`. The final override table for the
-  Tier-1 wiring still ships the high-frequency head, but now rides on this
-  validated classification instead of the raw collision pool.
+`reports/wordnet_layer_output.tsv`. The final override table for the
+   Tier-1 wiring still ships the high-frequency head, but now rides on this
+   validated classification instead of the raw collision pool.
+- **Progress (2026-09-11 — Tasks 1-5, FIRST-PASS canonical map built):** The
+  canonical-map build pipeline ran end to end. UNCERTAIN_NEEDS_LLM (14,778
+  tokens; corrected row-mass **73,003**, not the 58,555 documented earlier —
+  the old number came from a pre-QUOTE_NONE parse) was shrunk by coverage-based
+  piloting: 70% @ 1,318 / 80% @ 2,940 / 90% @ 7,478 → **70% tier chosen**
+  (80% > 2,500). IndicXlit batch API FAILED the integrity gate on 8/100
+  top-1 rank mismatches → BATCHING_TRUSTED=false → sequential calls only.
+  Gemini adjudicated 1,318 pilot tokens: **1,258 HINGLISH · 52 ENGLISH · 8
+  PENDING_MANUAL_REVIEW** (518 tokens defaulted-to-HINGLISH only because the
+  free-tier daily quota died mid-run — see P11; retry path preserved). The
+  candidate pool (`reports/candidate_hinglish_pool.tsv`, 1,307 tokens, 0
+  transliteration failures) and starter `canonical_map.json` (1,307 entries,
+  `token → devanagari_candidate_1`) are built. Still per the design:
+  `AMBIGUOUS` (main/maine/me/the) has NO static mapping; clusters / variants /
+  canonical_roman refinement to the final Tier-1/2/3 schema is next.
 
 ---
 
@@ -306,6 +321,33 @@ Format per problem: **Status** · **First seen** · **Symptom** · **Root cause*
   canonical-map build reads these files exclusively via `QUOTE_NONE` (Task 0
   fixed/deliverable files). A future switch to pandas-native reads would
   reintroduce this.
+
+---
+
+## P11 — Gemini free-tier daily quota exhaustion mid-adjudication (persistent 429)
+
+- **Status:** MITIGATED (retry path built; quota is time-based, resets on its own)
+- **First seen:** 2026-09-11 (Task 3, ~700 calls into the pilot adjudication)
+- **Symptom:** Fresh single call with the SAME `GEMINI_API_KEY` returned
+  `429 RESOURCE_EXHAUSTED "You exceeded your current quota"` long after the last
+  burst, at a time the script was already spacing calls ~20 s apart. The health
+  check and earlier Task-3 calls worked fine minutes earlier.
+- **Root cause:** Google free-tier limits are per minute **and** per day (flash-lite
+  free tier ≈ 15 RPM / ~1,500 requests/day — orders of magnitude below the
+  probe + health-check + real-run totals). Sustained per-token adjudication at
+  1.3 s/call burns the daily budget in ~30 minutes; from then on every call is
+  hard-429 **with no `Retry-After` header**, so no data-driven backoff is possible.
+- **Why it mattered:** Mid-run failures defaulted 518/1,318 tokens to HINGLISH
+  (`llm_call_failed_default`), undermining the LLM-confirmed quality of the
+  canonical map unless re-adjudicated later.
+- **Solution (built):** Task-3 script is incrementally flushed + resume-safe, and
+  resume now skips only tokens whose `llm_reason` is NOT `llm_call_failed_default`
+  — so the 518 are automatically re-adjudicated the next time the script runs
+  against a reset quota. Backoff is Retry-After-aware and adaptive (min 10 s,
+  streak-multiplied, capped 300 s). Human decision 2026-09-11: keep the 518
+  as-is for the first-pass map, retry opportunistically when quota returns.
+  Lesson for the next at-scale LLM job: **budget the free-tier daily cap (~1,500
+  calls) UP FRONT**, split work into daily chunks, or use a paid tier.
 
 ---
 

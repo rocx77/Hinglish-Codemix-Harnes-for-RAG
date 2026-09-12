@@ -36,6 +36,11 @@ HinglishCodeMix_Harness for RAG/
 │   ├── export_collision_pool.py       # Exhaustive freq-sorted len<=4 EN pool export
 │   ├── export_phinc_vocab.py          # Full vocab + row-freq export (canonical-map step 1)
 │   ├── wordnet_hinglish_filter.py     # P1 zero-cost rules pre-filter (nltk WordNet + wordfreq gate)
+│   ├── task1_pilot_pool.py            # Canonical-map Task 1: UNCERTAIN pilot pool by coverage tier
+│   ├── task2_batch_integrity.py       # Canonical-map Task 2: IndicXlit batch-integrity gate (.venv310)
+│   ├── task3_adjudicate_pilot.py      # Canonical-map Task 3: per-token Gemini adjudication (resume-safe)
+│   ├── task4_candidate_pool.py        # Canonical-map Task 4: merge overrides + adjudicated, Deva top-4 (.venv310)
+│   ├── task5_build_canonical_map.py   # Canonical-map Task 5: emit canonical_map.json (candidate_1 = final)
 │   ├── 02_build_benchmark.py  # (planned) Build benchmark from cleaned data
 │   ├── 03_run_retrieval.py    # (planned) Run BM25 / dense retrieval
 │   ├── 04_rerank.py           # (planned) Reranking experiments

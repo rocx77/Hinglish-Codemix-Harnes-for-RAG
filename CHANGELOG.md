@@ -1,5 +1,57 @@
 # CHANGELOG
 
+## [2026-09-11] Task 5 — first-pass canonical_map.json built
+
+- `scripts/task5_build_canonical_map.py`: reads
+  `reports/candidate_hinglish_pool.tsv`, applies `devanagari_candidate_1` as the
+  final form per token, excludes AMBIGUOUS_OVERRIDE (main/maine/me/the,
+  AST-parsed from live filter code), asserts no leak, writes `canonical_map.json`
+  with `ensure_ascii=False, indent=2`, prints 10 random sample pairs.
+- Delivered `canonical_map.json`: **1,307 entries** (render spot-checked:
+  करोगे, यादव, चंद...), 0 leaks, 0 empty candidates. Human decisions applied:
+  keep the 518 rate-limited-defaulted tokens as-is; use candidate_1 for all.
+- Still open (next iteration): cluster the 1,307 spellings by Devanagari
+  similarity, pick canonical_roman from canonical_devanagari, emit the full
+  Tier-1/2/3 schema (variants/clusters/provenance sidecar) per the finalized
+  normalization architecture.
+
+## [2026-09-11] Tasks 1-4 — pilot pool, batch-integrity, LLM adjudication, candidate pool
+
+- **Task 1** (`scripts/task1_pilot_pool.py`): joined fixed vocab+labels, took
+  UNCERTAIN_NEEDS_LLM (14,778 tokens). Row-mass baseline correction: UNCERTAIN =
+  **73,003** occurrences (the 58,555 figure was computed under pre-QUOTE_NONE
+  default-parsed counts). Coverage: 70% @1,318 / 80% @2,940 / 90% @7,478 tokens.
+  Rule (80% > 2,500) -> **70% tier**. Delivered `reports/pilot_pool_uncertain.tsv`
+  (1,318 rows; nahi 1592 ... yonitishsotantrik 8).
+- **Task 2** (`scripts/task2_batch_integrity.py`, runs under `.venv310`):
+  top-100 pilot tokens, batch call twice + sequential singles. Length PASS (no
+  collapse on distinct), determinism PASS, but **batch-vs-sequential top-1
+  MISMATCH on 8/100** (liye, abhi, my, pata, nhi, sahi, zyada, chal — always the
+  same candidate set, ranking differs). **BATCHING_TRUSTED: false** (spec: any
+  partial failure -> full distrust). Delivered `reports/batch_integrity_check.md`.
+- **Task 3** (`scripts/task3_adjudicate_pilot.py`): per-token Gemini
+  adjudication with fixed prompt template, word-boundary context (up to 3
+  sentences from `Sentence_clean`), ParseJSON via health-check helpers, retry
+  once + adaptive Retry-After backoff, per-token flushed resume. **Free-tier
+  quota exhausted mid-run (persistent HTTP 429 RESOURCE_EXHAUSTED)** -> 518 of
+  1,318 tokens defaulted to `HINGLISH` with `llm_call_failed_default` reason
+  (auditable); resume logic now skips only non-failed tokens so the 518 are
+  re-adjudicatable when quota resets. Final counts (1,318 rows): HINGLISH 1,258
+  (incl. 518 defaulted + 41 no-context defaults), ENGLISH 52,
+  PENDING_MANUAL_REVIEW 8. Sidecars: `task3_needs_manual_review.tsv` (8),
+  `task3_no_context_found.tsv` (41), `task3_llm_call_failures.tsv` (668 rows).
+  ~1.3 s/call under no throttle; ~20 s/call once 429s set in.
+- **Task 4** (`scripts/task4_candidate_pool.py`, `.venv310`): merged 49-token
+  `HINGLISH_OVERRIDE` (AST-parsed from live filter, not hardcoded) + adjudicated
+  HINGLISH (1,258) -> **1,307 unique** (0 overlap). Sequential
+  `translit_word(topk=4)` per token (BATCHING_TRUSTED=false), 51.7 s, **0
+  transliteration failures**. No per-candidate confidence scores emitted
+  (IndicXlit single-word API returns plain candidate lists).
+  Delivered `reports/candidate_hinglish_pool.tsv` (+ empty
+  `task4_transliteration_failures.tsv` header).
+- **HUMAN CHECKPOINT** per spec: Task 4 is the stop point — candidate pool needs
+  human review (final_devanagari choice per token) before Task 5.
+
 ## [2026-09-11] Task 0 — TSV quoting fix + input-header leak fix (canonical-map build)
 
 - Verified the documented quoting hazard: default pandas TSV parse of the
